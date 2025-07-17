@@ -22,27 +22,29 @@
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 const int buttonInc = 8;
 const int buttonDec = 9;
-int counter = 0;
+const char* messages[] = {"Hello!", "Arduino", "LCD1602", "Edit me!", ":)", "Custom text"};
+const int numMessages = sizeof(messages) / sizeof(messages[0]);
+int currentIndex = 0;
 
 void setup() {
   lcd.begin(16, 2);
-  lcd.print("Counter:");
+  lcd.print("Message:");
   pinMode(buttonInc, INPUT_PULLUP);
   pinMode(buttonDec, INPUT_PULLUP);
 }
 
 void loop() {
   lcd.setCursor(0, 1);
-  lcd.print("      "); // Clear line
+  lcd.print("                "); // Clear line (16 spaces)
   lcd.setCursor(0, 1);
-  lcd.print(counter);
+  lcd.print(messages[currentIndex]);
 
   if (digitalRead(buttonInc) == LOW) {
-    counter++;
+    currentIndex = (currentIndex + 1) % numMessages;
     delay(250); // Debounce
   }
   if (digitalRead(buttonDec) == LOW) {
-    counter--;
+    currentIndex = (currentIndex - 1 + numMessages) % numMessages;
     delay(250); // Debounce
   }
 } 
