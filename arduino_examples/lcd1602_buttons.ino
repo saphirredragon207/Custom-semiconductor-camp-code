@@ -1,21 +1,27 @@
 /*
-  LCD1602 + Buttons Example
-  - Uses LiquidCrystal library (included with Arduino IDE)
+  LCD1602 + DHT11/22 + HC-SR04 + Buzzer + RGB LED Example
+  - Uses LiquidCrystal and DHT libraries (included with Arduino IDE)
   - Connect LCD as follows (typical wiring):
-    RS -> D12
-    E  -> D11
-    D4 -> D5
-    D5 -> D4
-    D6 -> D3
-    D7 -> D2
+    RS  -> D12
+    E   -> D11
+    D4  -> D5
+    D5  -> D4
+    D6  -> D3
+    D7  -> D2
     VSS -> GND
     VDD -> 5V
     V0  -> Potentiometer (contrast)
     RW  -> GND
     A   -> 5V (backlight)
     K   -> GND (backlight)
-  - Button1: Increment (D8, active LOW)
-  - Button2: Decrement (D9, active LOW)
+  - DHT11/22: VCC -> 5V, DATA -> D7, GND -> GND, 10kΩ pullup on DATA
+  - HC-SR04: TRIG -> D8, ECHO -> D9, VCC -> 5V, GND -> GND
+  - Buzzer: + -> D6, - -> GND
+  - RGB LED (common cathode):
+      R -> D10 (with 220Ω resistor)
+      G -> D13 (with 220Ω resistor)
+      B -> A0  (with 220Ω resistor)
+      Common -> GND
 */
 #include <LiquidCrystal.h>
 #include <DHT.h>
@@ -26,6 +32,11 @@
 
 #define TRIG_PIN 8    // HC-SR04 Trig pin
 #define ECHO_PIN 9    // HC-SR04 Echo pin
+
+// ARGB (RGB LED) pins (common cathode, using only unused pins)
+#define RED_PIN 10
+#define GREEN_PIN 13
+#define BLUE_PIN A0
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 DHT dht(DHTPIN, DHTTYPE);
@@ -51,6 +62,13 @@ void setup() {
   digitalWrite(BUZZER_PIN, LOW);
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
+  pinMode(RED_PIN, OUTPUT);
+  pinMode(GREEN_PIN, OUTPUT);
+  pinMode(BLUE_PIN, OUTPUT);
+  // Start with LED off
+  digitalWrite(RED_PIN, LOW);
+  digitalWrite(GREEN_PIN, LOW);
+  digitalWrite(BLUE_PIN, LOW);
 }
 
 float readDistanceCM() {
@@ -62,6 +80,36 @@ float readDistanceCM() {
   long duration = pulseIn(ECHO_PIN, HIGH, 30000); // 30ms timeout (~5m)
   if (duration == 0) return NAN;
   return duration * 0.0343 / 2.0;
+}
+
+void setLEDColor(float humidity) {
+  // Common cathode: HIGH = ON, LOW = OFF
+  if (isnan(humidity)) {
+    // All off if error
+    digitalWrite(RED_PIN, LOW);
+    digitalWrite(GREEN_PIN, LOW);
+    digitalWrite(BLUE_PIN, LOW);
+  } else if (humidity >= 50 && humidity <= 60) {
+    // Red
+    digitalWrite(RED_PIN, HIGH);
+    digitalWrite(GREEN_PIN, LOW);
+    digitalWrite(BLUE_PIN, LOW);
+  } else if (humidity >= 40 && humidity < 50) {
+    // Yellow (Red + Green)
+    digitalWrite(RED_PIN, HIGH);
+    digitalWrite(GREEN_PIN, HIGH);
+    digitalWrite(BLUE_PIN, LOW);
+  } else if (humidity >= 0 && humidity < 40) {
+    // Green
+    digitalWrite(RED_PIN, LOW);
+    digitalWrite(GREEN_PIN, HIGH);
+    digitalWrite(BLUE_PIN, LOW);
+  } else {
+    // Out of range, all off
+    digitalWrite(RED_PIN, LOW);
+    digitalWrite(GREEN_PIN, LOW);
+    digitalWrite(BLUE_PIN, LOW);
+  }
 }
 
 void loop() {
@@ -89,6 +137,9 @@ void loop() {
       lcd.print(lastDistance, 1);
       lcd.print("cm   ");
     }
+
+    // Set ARGB LED color based on humidity
+    setLEDColor(lastHumidity);
 
     // Buzzer logic for humidity
     if (!isnan(lastHumidity) && lastHumidity < 60 && !buzzerSirenActive) {
