@@ -1,11 +1,10 @@
 /*
-  LCD1602 Jumping Game with Joystick, Buzzer, and 4-Digit 7-Segment Score Display
+  LCD1602 Jumping Game with Joystick and Buzzer
   ------------------------------------------------------------------------------
   - Character runs on bottom row of 16x2 LCD
   - Obstacles come from the right
   - Press joystick UP to jump to top row and avoid obstacles
   - Buzzer sounds when character collides with obstacle (game over)
-  - 4-digit 7-segment display shows score (increments for each obstacle avoided)
 
   Wiring Diagram (Arduino Uno R3):
   --------------------------------
@@ -15,7 +14,7 @@
     D4  -> D5
     D5  -> D4
     D6  -> D3
-    D7  -> D A0 (if needed, else D2)
+    D7  -> D2
     VSS -> GND
     VDD -> 5V
     V0  -> Potentiometer (contrast)
@@ -23,23 +22,6 @@
     A   -> 5V (backlight)
     K   -> GND (backlight)
 
-  4-Digit 7-Segment Display (common cathode, direct drive):
-    Segments A-G, DP -> D2, D3, D4, D5, D6, D7, D8, D13
-    Digit select pins -> D9, D10, D11, D12
-    (Use current-limiting resistors for each segment!)
-    Segments (A-G, DP):
-    A: D8
-    B: D9
-    C: D10
-    D: D13
-    E: A0
-    F: A2
-    G: A3
-    DP: A4
-    Digit Select Pins:
-    Digit 1: A5
-    Digit 2: (If you want to use D0/D1, but best to avoid. If not enough, you may need to use a multiplexer or shift register.)
-    
   Joystick:
     Y-axis  -> A1
     Button  -> D7 (active LOW)
@@ -59,22 +41,6 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 #define BUZZER_PIN 6
 #define JOY_Y_PIN A1
 #define JOY_BTN_PIN 7
-
-// 7-segment display pins
-const int segmentPins[8] = {2, 3, 4, 5, 6, 7, 8, 13}; // A,B,C,D,E,F,G,DP
-const int digitPins[4] = {9, 10, 11, 12};
-const byte digitCode[10] = {
-  0b00111111, // 0
-  0b00000110, // 1
-  0b01011011, // 2
-  0b01001111, // 3
-  0b01100110, // 4
-  0b01101101, // 5
-  0b01111101, // 6
-  0b00000111, // 7
-  0b01111111, // 8
-  0b01101111  // 9
-};
 
 // Game symbols
 byte CHAR_RUN[8] = {0b00100,0b01110,0b10101,0b00100,0b01110,0b10100,0b00100,0b01010}; // stickman
@@ -114,9 +80,6 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
   pinMode(JOY_BTN_PIN, INPUT_PULLUP);
-  // 7-segment pins
-  for (int i = 0; i < 8; i++) pinMode(segmentPins[i], OUTPUT);
-  for (int i = 0; i < 4; i++) pinMode(digitPins[i], OUTPUT);
   lcd.setCursor(2,0);
   lcd.print("Jump Game!");
   delay(1200);
@@ -195,26 +158,8 @@ void moveObstacles() {
   }
 }
 
-void showDigit(int num, int digit) {
-  for (int i = 0; i < 8; i++) digitalWrite(segmentPins[i], (digitCode[num] >> i) & 1);
-  digitalWrite(digitPins[digit], LOW); // Enable digit (common cathode)
-}
-void clearDigits() {
-  for (int i = 0; i < 4; i++) digitalWrite(digitPins[i], HIGH);
-}
-void displayScore(int num) {
-  for (int d = 0; d < 4; d++) {
-    int digit = (num / (int)pow(10, 3 - d)) % 10;
-    showDigit(digit, d);
-    delay(2);
-    clearDigits();
-  }
-}
-
 void loop() {
-  // Always multiplex the 7-segment display for score
-  displayScore(score);
-
+  // Game over state
   if (gameOver) {
     digitalWrite(BUZZER_PIN, HIGH);
     if (digitalRead(JOY_BTN_PIN) == LOW) {
